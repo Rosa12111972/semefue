@@ -1,0 +1,17 @@
+{
+  "name": "Se me fue · dilo antes de que se te vaya",
+  "short_name": "Se me fue",
+  "description": "¿Se te va la idea? Dilo y te la recuerdo con tu voz cuando lo necesites. Pensada para TDAH y problemas de memoria.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1226",
+  "theme_color": "#0f1226",
+  "lang": "es",
+  "categories": ["productivity", "health", "lifestyle"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
