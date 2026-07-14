@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f1226" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Se me fue · dilo antes de que se te vaya</title>
+<style>
+  :root {
+    --bg: #0f1226; --bg2: #1a1f3d; --card: #20264a; --text: #f2f4ff;
+    --muted: #9aa3c7; --accent: #5b8cff; --accent2: #7c5bff; --rec: #ff4b6e;
+    --ok: #28d196; --warn: #ffc24b; --radius: 22px; --shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 800px at 50% -10%, var(--bg2), var(--bg));
+    color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    min-height: 100%; display: flex; flex-direction: column; align-items: center;
+    padding: 22px 18px calc(100px + env(safe-area-inset-bottom)); overflow-x: hidden;
+  }
+  header { text-align: center; margin-bottom: 4px; }
+  .brand { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .brand .dot { width: 46px; height: 46px; }
+  h1 {
+    font-size: 1.9rem; margin: 0; letter-spacing: -.5px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: .98rem; margin-top: 6px; max-width: 340px; }
+  .wrap { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+  .banner { width: 100%; border-radius: 14px; padding: 13px 15px; font-size: .92rem; line-height: 1.45; display: none; }
+  .banner.show { display: block; }
+  .banner.err { background: #3a2030; border: 1px solid var(--rec); color: #ffd5de; }
+  .banner.info { background: #1c2b4a; border: 1px solid var(--accent); color: #d8e4ff; }
+  .banner b { color: #fff; }
+
+  .mic-area { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 12px; }
+  .mic-btn {
+    position: relative; width: 200px; height: 200px; border-radius: 50%; border: none;
+    cursor: pointer; color: #fff; background: linear-gradient(145deg, var(--accent), var(--accent2));
+    box-shadow: var(--shadow), inset 0 -6px 18px rgba(0,0,0,.25);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; transition: transform .12s ease; touch-action: manipulation;
+  }
+  .mic-btn:active { transform: scale(.96); }
+  .mic-btn .icon { font-size: 3.8rem; line-height: 1; }
+  .mic-btn .label { font-size: 1.1rem; font-weight: 700; }
+  .mic-btn.recording { background: linear-gradient(145deg, #ff4b6e, #ff7b54); }
+  .mic-btn.recording::before, .mic-btn.recording::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    border: 3px solid rgba(255,75,110,.55); animation: pulse 1.6s ease-out infinite;
+  }
+  .mic-btn.recording::after { animation-delay: .8s; }
+  @keyframes pulse { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.7); opacity: 0; } }
+
+  .status { color: var(--text); font-size: 1.02rem; min-height: 1.4em; text-align: center; font-weight: 600; }
+  .meter { width: 220px; height: 14px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; display: none; }
+  .meter.show { display: block; }
+  .meter .bar { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--ok), var(--warn)); transition: width .08s linear; }
+
+  .live { width: 100%; min-height: 50px; background: var(--card); border: 1px solid rgba(255,255,255,.06);
+    border-radius: var(--radius); padding: 16px 18px; font-size: 1.15rem; line-height: 1.5; color: var(--text); box-shadow: var(--shadow); text-align: center; }
+  .live.empty { color: var(--muted); font-size: 1rem; }
+  .live .interim { color: var(--muted); }
+
+  .recall-btn { width: 100%; border: 2px solid var(--accent); background: rgba(91,140,255,.12); color: var(--text);
+    border-radius: 18px; padding: 17px; font-size: 1.18rem; font-weight: 800; cursor: pointer; display: none; transition: transform .1s ease, background .15s ease; }
+  .recall-btn.show { display: block; }
+  .recall-btn:active { transform: scale(.97); background: rgba(91,140,255,.22); }
+
+  .delay-box { width: 100%; }
+  .delay-label { color: var(--muted); font-size: .85rem; margin-bottom: 8px; text-align: center; }
+  .chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .chip { border: 1px solid rgba(255,255,255,.12); background: transparent; color: var(--text);
+    padding: 10px 16px; border-radius: 999px; font-size: .95rem; cursor: pointer; transition: all .15s ease; }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+  .pending-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .pending { display: flex; align-items: center; gap: 14px; background: linear-gradient(145deg, #25305c, #20264a);
+    border: 1px solid rgba(124,91,255,.35); border-radius: 18px; padding: 14px 16px; }
+  .ring { position: relative; width: 52px; height: 52px; flex: 0 0 52px; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; font-weight: 800; }
+  .pending .txt { flex: 1; font-size: 1.12rem; font-weight: 600; }
+  .pending .txt small { display: block; color: var(--warn); font-weight: 500; margin-top: 2px; }
+  .pending .x { background: rgba(255,255,255,.08); border: none; color: var(--muted); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1rem; flex: 0 0 36px; }
+
+  .history { width: 100%; }
+  .history h2 { font-size: .85rem; color: var(--muted); font-weight: 600; margin: 4px 0 10px; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+  .hist-item { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 14px; padding: 13px 15px; margin-bottom: 8px; cursor: pointer; }
+  .hist-item:active { background: #28305c; }
+  .hist-item .h-txt { flex: 1; font-size: 1.05rem; }
+  .hist-item .h-txt small { display: block; color: var(--muted); font-size: .78rem; margin-top: 2px; }
+  .hist-item .play, .hist-item .del { background: transparent; border: none; cursor: pointer; padding: 4px 7px; line-height: 1; }
+  .hist-item .play { color: var(--accent); font-size: 1.3rem; }
+  .hist-item .del { color: var(--muted); font-size: 1.15rem; }
+  .hist-item .del:active { color: var(--rec); }
+  .clear-btn { display: block; margin: 2px auto 0; background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: .82rem; text-decoration: underline; }
+
+  .overlay { position: fixed; inset: 0; z-index: 50; display: none; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 28px; background: radial-gradient(900px 700px at 50% 30%, #2a3270, #0f1226); animation: flashbg .9s ease infinite alternate; }
+  .overlay.show { display: flex; }
+  @keyframes flashbg { from { background-color: #14183a; } to { background-color: #243089; } }
+  .overlay .eyebrow { color: var(--warn); font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
+  .overlay .big { font-size: clamp(2.4rem, 11vw, 4.5rem); font-weight: 900; line-height: 1.15; max-width: 640px; }
+  .overlay .actions { margin-top: 38px; display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .overlay button { border: none; border-radius: 18px; padding: 18px 30px; font-size: 1.2rem; font-weight: 800; cursor: pointer; }
+  .btn-done { background: var(--ok); color: #04201a; }
+  .btn-repeat { background: rgba(255,255,255,.14); color: #fff; }
+
+  .free-pill { font-size: .85rem; color: var(--muted); background: rgba(255,255,255,.06); padding: 7px 14px; border-radius: 999px; display: none; }
+  .free-pill.show { display: inline-block; }
+  .free-pill b { color: var(--warn); }
+  .free-pill.pro b { color: var(--ok); }
+  #paywall { background: radial-gradient(900px 700px at 50% 30%, #2a3270, #0f1226); animation: none; }
+  #paywall .card { background: var(--card); border: 1px solid rgba(124,91,255,.4); border-radius: 24px; padding: 30px 24px; max-width: 380px; width: 100%; box-shadow: var(--shadow); }
+  #paywall h2 { margin: 0 0 10px; font-size: 1.5rem; }
+  #paywall p { color: var(--muted); font-size: 1.02rem; line-height: 1.5; margin: 0; }
+  #paywall .price { font-size: 1.25rem; font-weight: 800; margin: 18px 0; color: var(--text); }
+  #paywall .price small { display: block; color: var(--muted); font-size: .85rem; font-weight: 500; }
+  #paywall .pro-btn { width: 100%; background: linear-gradient(145deg, var(--accent), var(--accent2)); color: #fff; border: none; border-radius: 16px; padding: 17px; font-size: 1.15rem; font-weight: 800; cursor: pointer; }
+  #paywall .pro-btn:active { transform: scale(.97); }
+  #paywall .close { background: rgba(255,255,255,.1); color: #fff; border: none; border-radius: 12px; padding: 12px 18px; cursor: pointer; margin-top: 12px; width: 100%; font-size: 1rem; }
+  #paywall .ghost { background: transparent; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: .85rem; margin-top: 16px; }
+
+  .footer { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+  .install-btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); border-radius: 12px; padding: 9px 16px; cursor: pointer; font-size: .9rem; display: none; }
+  .install-btn.show { display: inline-block; }
+  .hint { color: var(--muted); font-size: .85rem; text-align: center; max-width: 380px; line-height: 1.5; }
+  .legal { margin-top: 16px; font-size: .8rem; color: var(--muted); text-align: center; }
+  .legal a { color: var(--muted); text-decoration: underline; }
+</style>
+<!-- Analítica de visitas (GoatCounter, gratis y privada). Cambia "semefue" si tu código es otro. -->
+<script data-goatcounter="https://semefue.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <svg class="dot" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <rect width="48" height="48" rx="12" fill="url(#g)"/>
+        <rect x="11" y="9" width="26" height="20" rx="8" fill="#fff"/>
+        <circle cx="17.5" cy="33" r="2.8" fill="#fff"/>
+        <circle cx="13.5" cy="38.5" r="1.7" fill="#fff"/>
+        <circle cx="24" cy="16.5" r="5.6" fill="#ffd24b"/>
+        <rect x="21.6" y="21.5" width="4.8" height="3.2" rx="1.2" fill="#ffb020"/>
+        <defs><linearGradient id="g" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#5b8cff"/><stop offset="1" stop-color="#7c5bff"/></linearGradient></defs>
+      </svg>
+      <h1>Se me fue</h1>
+    </div>
+    <div class="subtitle">¿Se te va la idea? Dilo y te la recuerdo cuando lo necesites.</div>
+  </header>
+
+  <div class="wrap">
+    <div id="banner" class="banner"></div>
+
+    <div class="mic-area">
+      <button id="micBtn" class="mic-btn" aria-label="Grabar pensamiento">
+        <span class="icon">🎤</span>
+        <span class="label">Pulsa y dilo</span>
+      </button>
+      <div id="status" class="status">Pulsa y di lo que piensas</div>
+      <div id="meter" class="meter"><div class="bar" id="meterBar"></div></div>
+      <div id="freePill" class="free-pill"></div>
+    </div>
+
+    <div id="live" class="live empty">Aquí aparecerá lo que digas…</div>
+
+    <button id="recallBtn" class="recall-btn">🔊 ¿Qué estaba diciendo?</button>
+
+    <div class="type-box" style="max-width:440px;margin:16px auto 0;">
+      <div style="font-size:.9rem;color:#9aa3c7;margin-bottom:6px;text-align:center;">¿A una hora concreta? Escríbelo y te aviso 1 h antes:</div>
+      <div style="display:flex;gap:8px;">
+        <input id="typeInput" type="text" autocomplete="off" enterkeyhint="done" placeholder="pan a las cinco de la tarde"
+          style="flex:1;min-width:0;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#f2f4ff;font-size:1rem;" />
+        <button id="typeBtn" type="button" aria-label="Guardar lo escrito"
+          style="padding:12px 18px;border-radius:12px;border:none;background:linear-gradient(90deg,#5b8cff,#7c5bff);color:#fff;font-weight:700;cursor:pointer;white-space:nowrap;">Guardar</button>
+      </div>
+    </div>
+
+    <div class="delay-box">
+      <div class="delay-label">¿Cuándo te lo recuerdo?</div>
+      <div class="chips" id="chips">
+        <button class="chip" data-sec="0">Solo guardar</button>
+        <button class="chip active" data-sec="8">8 s</button>
+        <button class="chip" data-sec="15">15 s</button>
+        <button class="chip" data-sec="30">30 s</button>
+      </div>
+    </div>
+
+    <div id="pendingList" class="pending-list"></div>
+
+    <div class="history" id="recentsBox" style="display:none">
+      <h2>Recientes · toca para escuchar</h2>
+      <div id="recentsList"></div>
+      <button class="clear-btn" id="clearBtn">Borrar todo</button>
+    </div>
+
+    <div class="footer">
+      <button id="installBtn" class="install-btn">⤓ Instalar app</button>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div class="legal">
+      <a href="privacidad.html">Privacidad</a> · <a href="terminos.html">Términos</a> · <a href="mailto:hola@semefue.com">Contacto</a>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="eyebrow">💭 Recuerda</div>
+    <div class="big" id="overlayText"></div>
+    <div class="actions">
+      <button class="btn-repeat" id="repeatBtn">🔊 Repetir</button>
+      <button class="btn-done" id="doneBtn">✅ Hecho</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="paywall">
+    <div class="card">
+      <h2>🎉 ¡Has usado tus 5 recuerdos gratis!</h2>
+      <p>Hazte <b>Pro</b> y guarda <b>recuerdos ilimitados</b>, con avisos en segundo plano y tu voz siempre a mano.</p>
+      <div class="price" id="proPrice">7 días gratis<small>luego 2,99 €/mes · cancela cuando quieras</small></div>
+      <button class="pro-btn" id="proBtn">✨ Probar Pro gratis</button>
+      <button class="close" id="paywallClose">Ahora no</button>
+      <div><button class="ghost" id="haveCodeBtn">Ya soy Pro · introducir código</button></div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recognition = null, isRecording = false, finalText = "";
+  var mediaStream = null, mediaRecorder = null, chunks = [], lastAudioBlob = null;
+  var delaySec = 8;
+  var pending = [], recents = [], lastThought = null;
+  var insistTimer = null, insistCount = 0, currentAudioEl = null, activeRem = null;
+  var audioCtx = null, analyser = null, levelRAF = null, maxTimer = null;
+  var hasSpoken = false, lastLoud = 0, wakeLock = null, deferredPrompt = null;
+
+  /* ===== Configuración del plan (cámbialo aquí) ===== */
+  var BETA_MODE = true;             // BETA PRIVADA: sin muro de pago, todo desbloqueado. Ponlo en false al lanzar al público.
+  var FREE_LIMIT = 5;               // recuerdos gratis antes de pagar (cuando BETA_MODE = false)
+  var CHECKOUT_URL = "";            // pega aquí tu enlace de pago (Stripe Payment Link)
+  var INTEREST_URL = "";           // modo validación: enlace a un formulario (Tally/Google Forms) para medir si pagarían
+  var UNLOCK_TOKEN = "nodori7k2qx9"; // Stripe debe redirigir tras pagar a:  TU_URL/?u=nodori7k2qx9
+  var PRO_CODE = "NODORIPRO";       // código manual para desbloquear Pro (pruebas)
+  /* ===== Push en segundo plano (servidor) ===== */
+  var PUSH_SERVER_URL = "https://richmond-burns-ira-government.trycloudflare.com"; // túnel al servidor de push (PC)
+  var PUSH_KEY = "BFxsel4kgzryKynUdscAYbJKcWlyVpT0y63cBZqwLPjSGD7soSWhK62U4nmEb-j0--K0-J4qN6ns-HVn7X-pHVU";
+  var AI_PUNCT = false;            // puntuación con IA desactivada (queda la local gratis). Ponlo en true cuando quieras activarla.
+
+  var $ = function (id) { return document.getElementById(id); };
+  var micBtn = $("micBtn"), status = $("status"), meter = $("meter"), meterBar = $("meterBar");
+  var live = $("live"), chips = $("chips"), pendingList = $("pendingList");
+  var recallBtn = $("recallBtn"), recentsBox = $("recentsBox"), recentsList = $("recentsList"), clearBtn = $("clearBtn");
+  var overlay = $("overlay"), overlayText = $("overlayText"), doneBtn = $("doneBtn"), repeatBtn = $("repeatBtn");
+  var banner = $("banner"), installBtn = $("installBtn"), hint = $("hint");
+  var freePill = $("freePill"), paywall = $("paywall"), proBtn = $("proBtn");
+  var paywallClose = $("paywallClose"), haveCodeBtn = $("haveCodeBtn"), proPrice = $("proPrice");
+
+  function showBanner(kind, html) { banner.className = "banner show " + kind; banner.innerHTML = html; }
+  function hideBanner() { banner.className = "banner"; }
+
+  /* ===================== IndexedDB: guarda texto + audio entre sesiones ===================== */
+  function openDB() {
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open("nodori", 1);
+      r.onupgradeneeded = function () { if (!r.result.objectStoreNames.contains("rem")) r.result.createObjectStore("rem", { keyPath: "id" }); };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function dbPut(o) { return openDB().then(function (db) { return new Promise(function (res) {
+    var rec = { id: o.id, text: o.text, audioBlob: o.audioBlob || null, createdAt: o.createdAt, fireAt: o.fireAt, done: o.done };
+    var tx = db.transaction("rem", "readwrite"); tx.objectStore("rem").put(rec); tx.oncomplete = res; tx.onerror = res;
+  }); }).catch(function () {}); }
+  function dbDel(id) { return openDB().then(function (db) { return new Promise(function (res) {
+    var tx = db.transaction("rem", "readwrite"); tx.objectStore("rem").delete(id); tx.oncomplete = res; tx.onerror = res;
+  }); }).catch(function () {}); }
+  function dbAll() { return openDB().then(function (db) { return new Promise(function (res) {
+    var q = db.transaction("rem").objectStore("rem").getAll(); q.onsuccess = function () { res(q.result || []); }; q.onerror = function () { res([]); };
+  }); }).catch(function () { return []; }); }
+  function dbGet(id) { return openDB().then(function (db) { return new Promise(function (res) {
+    var q = db.transaction("rem").objectStore("rem").get(id); q.onsuccess = function () { res(q.result || null); }; q.onerror = function () { res(null); };
+  }); }).catch(function () { return null; }); }
+  function prune() { dbAll().then(function (all) {
+    if (all.length > 60) { all.sort(function (a, b) { return a.createdAt - b.createdAt; });
+      all.slice(0, all.length - 60).forEach(function (r) { dbDel(r.id); }); }
+  }); }
+
+  /* ===================== Reconocimiento (solo texto en pantalla; opcional) ===================== */
+  function setupRecognition() {
+    if (!SR) return;
+    recognition = new SR();
+    recognition.lang = "es-ES"; recognition.interimResults = true;
+    recognition.continuous = true; recognition.maxAlternatives = 1;
+    recognition.onresult = function (e) {
+      var interim = "", fin = "";
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var s = e.results[i][0].transcript;
+        if (e.results[i].isFinal) fin += s; else interim += s;
+      }
+      if (fin) finalText += fin;
+      renderLive(finalText, interim);
+    };
+    recognition.onerror = function () {};
+    recognition.onend = function () {};
+  }
+  function renderLive(fin, interim) {
+    if (!fin && !interim) { live.classList.add("empty"); live.textContent = "Aquí aparecerá lo que digas…"; return; }
+    live.classList.remove("empty");
+    live.innerHTML = escapeHtml(fin) + '<span class="interim"> ' + escapeHtml(interim) + "</span>";
+  }
+
+  /* ===================== Compatibilidad de audio (Chrome/Edge/Brave/Firefox/Safari) ===================== */
+  function pickMime() {
+    var types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus", "audio/ogg"];
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+      for (var i = 0; i < types.length; i++) { if (MediaRecorder.isTypeSupported(types[i])) return types[i]; }
+    }
+    return "";
+  }
+
+  /* ===================== Grabar voz real (robusto) ===================== */
+  function startRecording() {
+    hideBanner();
+    if (!BETA_MODE && !isPro() && usedCount() >= FREE_LIMIT) { showPaywall(); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showBanner("err", "⚠️ Este navegador no da acceso al micrófono aquí. Abre la app con <b>abrir.bat</b> (Edge/Chrome) en vez de hacer doble clic al archivo.");
+      return;
+    }
+    finalText = ""; lastAudioBlob = null; renderLive("", "");
+    hasSpoken = false; lastLoud = performance.now();
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      mediaStream = stream; chunks = [];
+      var mime = pickMime();
+      try { mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+      catch (e) { try { mediaRecorder = new MediaRecorder(stream); } catch (e2) { mediaRecorder = null; } }
+      if (mediaRecorder) {
+        mediaRecorder.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+        mediaRecorder.onstop = function () {
+          lastAudioBlob = chunks.length ? new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" }) : null;
+          if (mediaStream) mediaStream.getTracks().forEach(function (t) { t.stop(); });
+          setTimeout(createReminder, 250);
+        };
+        mediaRecorder.start();
+      }
+      if (recognition) { try { recognition.start(); } catch (e) {} }
+      startLevelMeter(stream);
+      isRecording = true;
+      micBtn.classList.add("recording");
+      micBtn.querySelector(".icon").textContent = "⏹️";
+      micBtn.querySelector(".label").textContent = "Hablando…";
+      meter.classList.add("show");
+      status.textContent = "🔴 Te escucho… habla (toca para terminar)";
+      maxTimer = setTimeout(function () { if (isRecording) stopRecording(); }, 60000);
+    }).catch(function (err) {
+      var msg = "No pude acceder al micrófono.";
+      if (err && (err.name === "NotAllowedError" || err.name === "SecurityError"))
+        msg = "🎤 <b>Permiso denegado.</b> Pulsa el candado 🔒 de la barra de direcciones → Micrófono → <b>Permitir</b>, y vuelve a intentarlo.";
+      else if (err && err.name === "NotFoundError")
+        msg = "🎤 No encuentro ningún micrófono conectado.";
+      showBanner("err", msg);
+      status.textContent = "No te oí. Revisa el micrófono.";
+    });
+  }
+
+  function startLevelMeter(stream) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      analyser = audioCtx.createAnalyser(); analyser.fftSize = 512;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+      var data = new Uint8Array(analyser.fftSize);
+      var tick = function () {
+        if (!isRecording) return;
+        analyser.getByteTimeDomainData(data);
+        var sum = 0;
+        for (var i = 0; i < data.length; i++) { var v = (data[i] - 128) / 128; sum += v * v; }
+        var rms = Math.sqrt(sum / data.length);
+        meterBar.style.width = Math.min(100, Math.round(rms * 320)) + "%";
+        if (rms > 0.045) { hasSpoken = true; lastLoud = performance.now(); }
+        if (hasSpoken && performance.now() - lastLoud > 2800) { stopRecording(); return; }
+        levelRAF = requestAnimationFrame(tick);
+      };
+      levelRAF = requestAnimationFrame(tick);
+    } catch (e) {}
+  }
+
+  function stopRecording() {
+    if (!isRecording) return;
+    isRecording = false;
+    clearTimeout(maxTimer);
+    if (levelRAF) cancelAnimationFrame(levelRAF);
+    if (audioCtx) { try { audioCtx.close(); } catch (e) {} audioCtx = null; }
+    meter.classList.remove("show"); meterBar.style.width = "0%";
+    micBtn.classList.remove("recording");
+    micBtn.querySelector(".icon").textContent = "🎤";
+    micBtn.querySelector(".label").textContent = "Pulsa y dilo";
+    if (recognition) { try { recognition.stop(); } catch (e) {} }
+    if (mediaRecorder && mediaRecorder.state !== "inactive") { try { mediaRecorder.stop(); } catch (e) {} }
+    else { setTimeout(createReminder, 250); }
+  }
+
+  micBtn.addEventListener("click", function () { unlockAudio(); if (isRecording) stopRecording(); else startRecording(); });
+
+  /* ===================== Crear pensamiento (guardar + programar) ===================== */
+  function createReminder() {
+    var raw = finalText;
+    var when = parseWhen(raw);                        // ¿dijo un día/hora? ("mañana a las 9", "en 10 min", "el viernes")
+    var text = tidyText(when && when.cleaned ? when.cleaned : raw);
+    if (!text && !lastAudioBlob) { status.textContent = "No te oí. Inténtalo otra vez."; return; }
+    var now = Date.now();
+    var scheduled, early = false;
+    if (when) {
+      scheduled = when.fireAt;
+      // Si dijo una hora concreta, avisa 1 hora antes para que dé tiempo (sin bajar de "ahora mismo").
+      if (when.kind === "time") { scheduled = Math.max(now + 5000, when.fireAt - 3600000); early = scheduled < when.fireAt - 1000; }
+    } else {
+      scheduled = delaySec > 0 ? now + delaySec * 1000 : null;
+    }
+    var rem = { id: now + "-" + Math.floor(Math.random() * 1e6), text: text || "Nota de voz",
+      audioBlob: lastAudioBlob || null, createdAt: now,
+      fireAt: scheduled, done: false };
+    dbPut(rem).then(prune);
+    recents.unshift(rem); if (recents.length > 40) recents.pop();
+    lastThought = rem; recallBtn.classList.add("show"); renderRecents(); renderLive("", "");
+    incUsed();
+    aiPunctuate(rem, raw);
+    if (rem.fireAt) {
+      pending.push(rem); renderPending(); requestWakeLock();
+      scheduleTriggeredNotification(rem);
+      pushSchedule(rem);
+      status.textContent = "👍 Te aviso " + whenLabel(rem.fireAt) + (early ? " · 1 h antes" : "");
+    } else {
+      status.textContent = "💾 Guardado. Pulsa «¿Qué estaba diciendo?» cuando quieras.";
+    }
+  }
+
+  /* ===================== Reloj: dispara los pendientes (también tras recargar) ===================== */
+  function tickPending() {
+    if (!pending.length) return;
+    var now = Date.now();
+    pending.slice().forEach(function (rem) {
+      var remaining = Math.ceil((rem.fireAt - now) / 1000);
+      if (remaining <= 0) fireReminder(rem);
+      else updateRing(rem, remaining);
+    });
+  }
+  setInterval(tickPending, 500);
+  // Al volver de bloqueo/segundo plano, dispara al instante lo que ya tocaba (no se pierde nada).
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") tickPending(); });
+  window.addEventListener("pageshow", tickPending);
+  window.addEventListener("focus", tickPending);
+
+  // Mejor esfuerzo: aviso programado a la hora exacta aunque la app esté cerrada/bloqueada
+  // (en los navegadores que soportan Notification Triggers).
+  function scheduleTriggeredNotification(rem) {
+    try {
+      if (typeof window.TimestampTrigger === "undefined") return;
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      navigator.serviceWorker.ready.then(function (reg) {
+        reg.showNotification("💭 Recuerda", {
+          tag: "nodori-" + rem.id, body: rem.text, icon: "icon.svg", badge: "icon.svg",
+          requireInteraction: true, data: { id: rem.id },
+          showTrigger: new window.TimestampTrigger(rem.fireAt)
+        });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  function fireReminder(rem) {
+    if (rem.done) return;
+    rem.done = true; dbPut(rem);
+    pending = pending.filter(function (p) { return p.id !== rem.id; });
+    renderPending(); renderRecents();
+    notify(rem);
+    if (document.visibilityState === "visible") {
+      activeRem = rem; setOverlayText(rem.text); overlay.classList.add("show"); startInsist(rem);
+    }
+    releaseWakeLock();
+  }
+
+  /* ===================== Aviso en segundo plano (notificación del sistema) ===================== */
+  function notify(rem) {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    var opts = { body: rem.text, tag: "nodori-" + rem.id, renotify: true, requireInteraction: true,
+      icon: "icon.svg", badge: "icon.svg", data: { id: rem.id }, vibrate: [250, 120, 250] };
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(function (reg) { return reg.showNotification("💭 Recuerda", opts); })
+        .catch(function () { try { new Notification("💭 Recuerda", { body: rem.text }); } catch (e) {} });
+    } else { try { new Notification("💭 Recuerda", { body: rem.text }); } catch (e) {} }
+  }
+
+  /* ===================== Push en segundo plano (suscripción + programar en el servidor) ===================== */
+  var pushSub = null;
+  function urlB64ToUint8(base64) {
+    var pad = "=".repeat((4 - base64.length % 4) % 4);
+    var b64 = (base64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+    var raw = atob(b64), arr = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+  }
+  function enablePush() {
+    if (!PUSH_SERVER_URL || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== "granted") return;
+      navigator.serviceWorker.ready.then(function (reg) {
+        reg.pushManager.getSubscription().then(function (sub) {
+          if (sub) { pushSub = sub; return; }
+          reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(PUSH_KEY) })
+            .then(function (s) { pushSub = s; }).catch(function () {});
+        });
+      }).catch(function () {});
+    }).catch(function () {});
+  }
+  function pushSchedule(rem) {
+    if (!PUSH_SERVER_URL || !pushSub) return;
+    try {
+      fetch(PUSH_SERVER_URL + "/schedule", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: pushSub, text: rem.text, fireAt: rem.fireAt, tag: "nodori-" + rem.id })
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  // Mejora el texto con IA (Claude) en segundo plano y actualiza el recuerdo cuando responde.
+  function aiPunctuate(rem, raw) {
+    if (!AI_PUNCT || !PUSH_SERVER_URL) return;
+    var src = (raw || "").trim();
+    if (!src) return;
+    try {
+      fetch(PUSH_SERVER_URL + "/punctuate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: src })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.text && d.text.trim() && d.text.trim() !== rem.text) {
+          rem.text = d.text.trim();
+          dbPut(rem); renderRecents(); renderPending();
+          if (activeRem && activeRem.id === rem.id && overlay.classList.contains("show")) setOverlayText(rem.text);
+        }
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  function startInsist(rem) {
+    insistCount = 0;
+    clearTimeout(insistTimer);
+    playFull(rem);
+  }
+  // Reproduce el audio ENTERO; al terminar lo repite hasta 3 veces (sin cortarlo a la mitad).
+  function playFull(rem) {
+    chime();
+    if (navigator.vibrate) navigator.vibrate([250, 120, 250]);
+    var url = blobUrl(rem);
+    if (!url) { speak(rem.text); return; }
+    var a = getPlayer();
+    a.onended = function () {
+      insistCount++;
+      if (insistCount < 3 && overlay.classList.contains("show")) {
+        insistTimer = setTimeout(function () {
+          if (overlay.classList.contains("show")) {
+            try { a.currentTime = 0; var pp = a.play(); if (pp && pp.catch) pp.catch(function () {}); } catch (e) {}
+          }
+        }, 1800);
+      }
+    };
+    try { a.muted = false; a.src = url; var p = a.play(); if (p && p.catch) p.catch(function () { a.onended = null; speak(rem.text); }); }
+    catch (e) { a.onended = null; speak(rem.text); }
+  }
+  function blobUrl(rem) { if (!rem.audioBlob) return null; if (!rem._url) rem._url = URL.createObjectURL(rem.audioBlob); return rem._url; }
+  // Reutilizamos un único reproductor y lo "desbloqueamos" al tocar el botón (necesario en móvil para que suene solo).
+  var SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+  function getPlayer() { if (!currentAudioEl) currentAudioEl = new Audio(); return currentAudioEl; }
+  function unlockAudio() {
+    try {
+      var a = getPlayer(); a.src = SILENT_WAV; a.muted = true;
+      var p = a.play(); if (p && p.catch) p.catch(function () {});
+      setTimeout(function () { try { a.pause(); a.currentTime = 0; a.muted = false; } catch (e) {} }, 40);
+      if (window.speechSynthesis) { try { window.speechSynthesis.resume(); } catch (e) {} }
+    } catch (e) {}
+  }
+  function playOnce(rem) {
+    clearTimeout(insistTimer);
+    chime();
+    if (navigator.vibrate) navigator.vibrate([250, 120, 250]);
+    var url = blobUrl(rem);
+    if (url) {
+      try { var a = getPlayer(); a.onended = null; a.muted = false; a.src = url;
+        var p = a.play(); if (p && p.catch) p.catch(function () { speak(rem.text); }); return;
+      } catch (e) {}
+    }
+    speak(rem.text);
+  }
+
+  doneBtn.addEventListener("click", function () {
+    overlay.classList.remove("show"); clearTimeout(insistTimer);
+    if (currentAudioEl) { currentAudioEl.onended = null; currentAudioEl.pause(); }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    status.textContent = "Pulsa y di lo que piensas";
+  });
+  repeatBtn.addEventListener("click", function () { if (activeRem) playOnce(activeRem); });
+  recallBtn.addEventListener("click", function () {
+    var rem = lastThought || recents[0];
+    if (rem) { activeRem = rem; playOnce(rem); }
+  });
+
+  function speak(text) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance("Recuerda: " + text);
+    u.lang = "es-ES"; u.rate = 0.97;
+    var voices = window.speechSynthesis.getVoices().filter(function (v) { return /es/i.test(v.lang); });
+    if (voices.length) u.voice = voices[0];
+    window.speechSynthesis.speak(u);
+  }
+  function chime() {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.16, 0.32].forEach(function (t, i) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = [700, 920, 1150][i];
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(0.28, ctx.currentTime + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.15);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.17);
+      });
+    } catch (e) {}
+  }
+
+  /* ===================== Render ===================== */
+  function renderPending() {
+    pendingList.innerHTML = "";
+    pending.sort(function (a, b) { return a.fireAt - b.fireAt; });
+    pending.forEach(function (rem) {
+      var remaining = Math.max(0, Math.ceil((rem.fireAt - Date.now()) / 1000));
+      var immediate = (rem.fireAt - rem.createdAt) <= 90000;  // solo los casi-inmediatos ("el cuchillo") cuentan segundos
+      var div = document.createElement("div");
+      div.className = "pending"; div.dataset.id = rem.id;
+      div.innerHTML =
+        '<div class="ring"><svg width="52" height="52"><circle cx="26" cy="26" r="22" stroke="rgba(255,255,255,.12)" stroke-width="5" fill="none"/>' +
+        '<circle class="prog" cx="26" cy="26" r="22" stroke="#7c5bff" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="0"/></svg>' +
+        '<div class="count">' + (immediate ? remaining : "⏰") + '</div></div>' +
+        '<div class="txt">' + escapeHtml(rem.text) + '<small>' + whenLabel(rem.fireAt) + '</small></div>' +
+        '<button class="x" title="Cancelar">✕</button>';
+      div.querySelector(".x").addEventListener("click", function () { cancelReminder(rem.id); });
+      pendingList.appendChild(div);
+    });
+  }
+  function updateRing(rem, remaining) {
+    var el = pendingList.querySelector('[data-id="' + rem.id + '"]'); if (!el) return;
+    el.querySelector("small").textContent = whenLabel(rem.fireAt);
+    var immediate = (rem.fireAt - rem.createdAt) <= 90000;
+    if (immediate) {
+      var total = Math.max(1, Math.round((rem.fireAt - rem.createdAt) / 1000));
+      var frac = Math.max(0, remaining) / total;
+      el.querySelector(".prog").setAttribute("stroke-dashoffset", String(138.2 * (1 - frac)));
+      el.querySelector(".count").textContent = Math.max(0, remaining);
+    } else {
+      el.querySelector(".prog").setAttribute("stroke-dashoffset", "0");
+      el.querySelector(".count").textContent = "⏰";  // con hora: no contamos segundos, solo la etiqueta
+    }
+  }
+  function cancelReminder(id) {
+    pending = pending.filter(function (p) { return p.id !== id; });
+    dbDel(id); clearTriggered(id);
+    recents = recents.filter(function (r) { return r.id !== id; });
+    renderPending(); renderRecents();
+  }
+  function deleteThought(id) {
+    pending = pending.filter(function (p) { return p.id !== id; });
+    recents = recents.filter(function (r) { return r.id !== id; });
+    if (lastThought && lastThought.id === id) lastThought = recents[0] || null;
+    if (!recents.length) recallBtn.classList.remove("show");
+    dbDel(id); clearTriggered(id);
+    renderPending(); renderRecents();
+  }
+  function clearTriggered(id) {
+    try {
+      navigator.serviceWorker.ready.then(function (reg) {
+        if (reg.getNotifications) reg.getNotifications({ tag: "nodori-" + id, includeTriggered: true })
+          .then(function (ns) { ns.forEach(function (n) { n.close(); }); }).catch(function () {});
+      });
+    } catch (e) {}
+  }
+  function renderRecents() {
+    var pend = {}; pending.forEach(function (p) { pend[p.id] = 1; });
+    var list = recents.filter(function (r) { return !pend[r.id]; });
+    if (!list.length) { recentsBox.style.display = "none"; return; }
+    recentsBox.style.display = "block"; recentsList.innerHTML = "";
+    list.forEach(function (rem) {
+      var div = document.createElement("div");
+      div.className = "hist-item";
+      div.innerHTML = '<div class="h-txt">' + escapeHtml(rem.text) + '</div>'
+        + '<button class="play" title="Escuchar">🔊</button>'
+        + '<button class="del" title="Borrar este recuerdo">🗑️</button>';
+      div.querySelector(".h-txt").addEventListener("click", function () { activeRem = rem; playOnce(rem); });
+      div.querySelector(".play").addEventListener("click", function (e) { e.stopPropagation(); activeRem = rem; playOnce(rem); });
+      div.querySelector(".del").addEventListener("click", function (e) { e.stopPropagation(); deleteThought(rem.id); });
+      recentsList.appendChild(div);
+    });
+  }
+  clearBtn.addEventListener("click", function () {
+    if (!confirm("¿Borrar todos los pensamientos guardados?")) return;
+    recents.forEach(function (r) { dbDel(r.id); });
+    pending.forEach(function (r) { dbDel(r.id); });
+    recents = []; pending = []; lastThought = null;
+    recallBtn.classList.remove("show"); renderPending(); renderRecents();
+  });
+
+  function requestWakeLock() {
+    if (!("wakeLock" in navigator) || wakeLock) return;
+    navigator.wakeLock.request("screen").then(function (w) { wakeLock = w;
+      w.addEventListener("release", function () { wakeLock = null; }); }).catch(function () {});
+  }
+  function releaseWakeLock() { if (pending.length === 0 && wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; } }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // Limpia el texto: espacios, mayúsculas, punto final y puntuación dictada ("coma", "punto"...).
+  function tidyText(raw) {
+    var t = " " + (raw || "") + " ";
+    t = t.replace(/ punto y aparte /gi, ". ");
+    t = t.replace(/ punto y seguido /gi, ". ");
+    t = t.replace(/ dos puntos /gi, ": ");
+    t = t.replace(/ punto y coma /gi, "; ");
+    t = t.replace(/ coma /gi, ", ");
+    t = t.replace(/ punto /gi, ". ");
+    t = t.replace(/\s+([,.;:!?])/g, "$1");        // sin espacio antes del signo
+    t = t.replace(/([,.;:])(\S)/g, "$1 $2");       // espacio después del signo
+    t = t.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+    if (!t) return "";
+    t = t.charAt(0).toUpperCase() + t.slice(1);     // mayúscula inicial
+    t = t.replace(/([.?!]\s+)([a-zñáéíóúü])/g, function (m, a, b) { return a + b.toUpperCase(); });
+    if (!/[.?!]$/.test(t)) t += ".";                 // punto final
+    return t;
+  }
+
+  // Pone el texto del aviso y ajusta el tamaño: más pequeño cuanto más largo.
+  function setOverlayText(text) {
+    overlayText.textContent = text;
+    var n = (text || "").length;
+    overlayText.style.fontSize = n <= 40 ? "clamp(2.2rem, 10vw, 4.2rem)"
+      : n <= 90 ? "clamp(1.7rem, 7vw, 3rem)"
+      : "clamp(1.15rem, 5vw, 2.1rem)";
+  }
+
+  /* ===================== Entender CUÁNDO recordar (día/hora en español · local y gratis) ===================== */
+  var WORDNUM = { "un":1,"uno":1,"una":1,"dos":2,"tres":3,"cuatro":4,"cinco":5,"seis":6,"siete":7,"ocho":8,"nueve":9,"diez":10,"once":11,"doce":12,"trece":13,"catorce":14,"quince":15,"veinte":20,"veinticinco":25,"treinta":30,"cuarenta":40,"cincuenta":50,"sesenta":60,"noventa":90 };
+  var DOW = { "domingo":0,"lunes":1,"martes":2,"miercoles":3,"miércoles":3,"jueves":4,"viernes":5,"sabado":6,"sábado":6 };
+  var MONTHS = { "enero":0,"febrero":1,"marzo":2,"abril":3,"mayo":4,"junio":5,"julio":6,"agosto":7,"septiembre":8,"setiembre":8,"octubre":9,"noviembre":10,"diciembre":11 };
+  function toNum(s){ s=(s||"").trim(); if(/^\d+$/.test(s)) return parseInt(s,10); return WORDNUM[s]!=null?WORDNUM[s]:null; }
+  function reEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+  // Horas dichas en palabras (0-23), para que "a las cinco" / "a las diecisiete" funcionen al hablar.
+  var HOURWORD = { "cero":0,"una":1,"uno":1,"un":1,"dos":2,"tres":3,"cuatro":4,"cinco":5,"seis":6,"siete":7,"ocho":8,"nueve":9,"diez":10,"once":11,"doce":12,"trece":13,"catorce":14,"quince":15,"dieciseis":16,"diecisiete":17,"dieciocho":18,"diecinueve":19,"veinte":20,"veintiuna":21,"veintiuno":21,"veintidos":22,"veintitres":23 };
+  function hourNum(s){ s=(s||"").trim(); if(/^\d+$/.test(s)) return parseInt(s,10); s=s.replace(/á/g,"a").replace(/é/g,"e").replace(/í/g,"i").replace(/ó/g,"o").replace(/ú/g,"u"); return HOURWORD[s]!=null?HOURWORD[s]:null; }
+  var HRRE = "\\d{1,2}|veintitr[eé]s|veintid[oó]s|veintiuna|veintiuno|veinte|diecinueve|dieciocho|diecisiete|diecis[eé]is|quince|catorce|trece|doce|once|diez|nueve|ocho|siete|seis|cinco|cuatro|tres|dos|una|uno|un|cero";
+
+  // Devuelve { fireAt, cleaned } si detecta un cuándo (ej. "mañana a las 9", "en 10 minutos", "el viernes"), o null.
+  function parseWhen(raw){
+    if(!raw) return null;
+    var t = " " + raw.toLowerCase().replace(/\s+/g," ") + " ";
+    var now = Date.now(), strip = [], fireAt = null, kind = null, m;
+
+    if((m = t.match(/\b(?:en|dentro de) media hora\b/))) { fireAt = now + 1800000; strip.push(m[0]); }
+    else if((m = t.match(/\b(?:en|dentro de) un cuarto de hora\b/))) { fireAt = now + 900000; strip.push(m[0]); }
+    else if((m = t.match(/\b(?:en|dentro de) (?:una )?hora y media\b/))) { fireAt = now + 5400000; strip.push(m[0]); }
+    else if((m = t.match(/\b(?:en|dentro de)\s+(\d+|un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|veinticinco|treinta|cuarenta|cincuenta|sesenta|noventa)\s*(segundos?|seg|minutos?|min|horas?|hora|h)\b/))){
+      var n = toNum(m[1]); if(n!=null){ var u=m[2]; var f = u.indexOf("seg")===0?1 : u.indexOf("min")===0?60 : 3600; fireAt = now + n*f*1000; strip.push(m[0]); }
+    }
+    if(fireAt !== null) kind = "relative";
+
+    if(fireAt === null){
+      var d = new Date(); d.setSeconds(0,0);
+      var hasDate = false, hasTime = false;
+      if((m = t.match(/\b(?:el |este |pr[oó]ximo |el pr[oó]ximo )?(domingo|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado)\b/))){
+        var add = (DOW[m[1]] - d.getDay() + 7) % 7; if(add===0) add = 7;
+        d.setDate(d.getDate()+add); hasDate = true; strip.push(m[0]);
+      }
+      if((m = t.match(/\bel (\d{1,2})(?: de ([a-záéíóú]+))?\b/))){
+        var day = parseInt(m[1],10);
+        if(day>=1 && day<=31){
+          d.setDate(day);
+          if(m[2] && MONTHS[m[2]]!=null) d.setMonth(MONTHS[m[2]]);
+          if(d.getTime() < now){ if(m[2]) d.setFullYear(d.getFullYear()+1); else d.setMonth(d.getMonth()+1); }
+          hasDate = true; strip.push(m[0]);
+        }
+      }
+      if(/\bpasado mañana\b/.test(t)){ d = new Date(); d.setSeconds(0,0); d.setDate(d.getDate()+2); hasDate = true; strip.push("pasado mañana"); }
+      else if(!hasDate && /\bmañana\b/.test(t) && !/(la|esta|por la|de la) mañana/.test(t)){ d = new Date(); d.setSeconds(0,0); d.setDate(d.getDate()+1); hasDate = true; strip.push("mañana"); }
+
+      if((m = t.match(new RegExp("a\\s+la?s?\\s+("+HRRE+")(?:\\s*[:.h]\\s*(\\d{2})|\\s+y\\s+(media|cuarto|"+HRRE+")|\\s+menos\\s+(cuarto|"+HRRE+"))?\\s*(de la (?:mañana|tarde|noche)|a\\.?m\\.?|p\\.?m\\.?|h)?")))){
+        var hh = hourNum(m[1]); if(hh==null) hh = 0;
+        var mm = 0;
+        if(m[2]) mm = parseInt(m[2],10);
+        else if(m[3]){ if(/media/.test(m[3])) mm = 30; else if(/cuarto/.test(m[3])) mm = 15; else { var mn = hourNum(m[3]); if(mn!=null) mm = mn; } }
+        else if(m[4]){ if(/cuarto/.test(m[4])) mm = 45; else { var mn2 = hourNum(m[4]); mm = 60 - (mn2||0); } hh = (hh + 23) % 24; }
+        var suf = m[5]||"";
+        if(/tarde|noche|p\.?m/.test(suf) && hh<12) hh += 12;
+        if(/(mañana|a\.?m)/.test(suf) && hh===12) hh = 0;
+        d.setHours(hh,mm,0,0); hasTime = true; strip.push(m[0]);
+      }
+      else if(/(esta tarde|por la tarde|a la tarde)/.test(t)){ d.setHours(17,0,0,0); hasTime = true; strip.push("tarde"); }
+      else if(/(esta noche|por la noche|a la noche)/.test(t)){ d.setHours(21,0,0,0); hasTime = true; strip.push("noche"); }
+      else if(/(esta mañana|por la mañana|de la mañana)/.test(t)){ d.setHours(9,0,0,0); hasTime = true; strip.push("mañana"); }
+      else if(/mediod[ií]a/.test(t)){ d.setHours(14,0,0,0); hasTime = true; strip.push("mediodía"); }
+
+      if(hasDate || hasTime){
+        if(!hasTime) d.setHours(9,0,0,0);
+        if(d.getTime() <= now && !hasDate) d.setDate(d.getDate()+1);
+        fireAt = d.getTime();
+        kind = hasTime ? "time" : "date";
+      }
+    }
+    if(fireAt === null) return null;
+
+    var cleaned = raw;
+    strip.forEach(function(s){ s = s.trim(); if (s) cleaned = cleaned.replace(new RegExp(reEsc(s),"i")," "); });
+    cleaned = cleaned.replace(/\b(recu[eé]rdame|acu[eé]rdate de|acu[eé]rdate|tengo que|hay que|ap[uú]nta(?:me)?|anota|a las?|el|la|los)\b/gi," ").replace(/\s+/g," ").replace(/^[\s,.;:]+|[\s,.;:]+$/g,"").trim();
+    return { fireAt: fireAt, cleaned: cleaned, kind: kind };
+  }
+
+  // Etiqueta amistosa: "en 8 s", "en 5 min", "hoy a las 21:00", "mañana a las 9:00", "vie a las 17:00".
+  function whenLabel(fireAt){
+    var d = new Date(fireAt), now = new Date(), diff = (fireAt - Date.now()) / 1000;
+    if(diff < 90) return "en " + Math.max(1, Math.round(diff)) + " s";
+    if(diff < 3600) return "en " + Math.round(diff / 60) + " min";
+    var hhmm = d.getHours() + ":" + ("0" + d.getMinutes()).slice(-2);
+    var tmr = new Date(now.getTime() + 86400000);
+    if(d.toDateString() === now.toDateString()) return "hoy a las " + hhmm;
+    if(d.toDateString() === tmr.toDateString()) return "mañana a las " + hhmm;
+    var dias = ["dom","lun","mar","mié","jue","vie","sáb"];
+    if(fireAt - Date.now() < 7 * 86400000) return dias[d.getDay()] + " a las " + hhmm;
+    return d.getDate() + "/" + (d.getMonth() + 1) + " a las " + hhmm;
+  }
+
+  /* ===================== Plan gratis / Pro (paywall) ===================== */
+  function isPro() { try { return localStorage.getItem("nodori_pro") === "1"; } catch (e) { return false; } }
+  function setPro(v) { try { localStorage.setItem("nodori_pro", v ? "1" : "0"); } catch (e) {} updateFreePill(); }
+  function usedCount() { var n = parseInt((function () { try { return localStorage.getItem("nodori_used"); } catch (e) { return "0"; } })() || "0", 10); return isNaN(n) ? 0 : n; }
+  function incUsed() { try { localStorage.setItem("nodori_used", String(usedCount() + 1)); } catch (e) {} updateFreePill(); }
+
+  function updateFreePill() {
+    if (BETA_MODE) { freePill.className = "free-pill pro show"; freePill.innerHTML = "Beta · todo desbloqueado ✨"; return; }
+    if (isPro()) { freePill.className = "free-pill pro show"; freePill.innerHTML = "<b>Pro</b> · recuerdos ilimitados ✨"; return; }
+    var left = Math.max(0, FREE_LIMIT - usedCount());
+    freePill.className = "free-pill show";
+    freePill.innerHTML = "Te quedan <b>" + left + "</b> de " + FREE_LIMIT + " recuerdos gratis";
+  }
+  function showPaywall() { paywall.classList.add("show"); }
+  function hidePaywall() { paywall.classList.remove("show"); }
+
+  proBtn.addEventListener("click", function () {
+    if (CHECKOUT_URL) { window.open(CHECKOUT_URL, "_blank"); }
+    else if (INTEREST_URL) { window.open(INTEREST_URL, "_blank"); }
+    else { alert("Conecta tu pago (CHECKOUT_URL) o tu formulario de validación (INTEREST_URL)."); }
+  });
+  paywallClose.addEventListener("click", hidePaywall);
+  haveCodeBtn.addEventListener("click", function () {
+    var c = prompt("Introduce tu código Pro:");
+    if (c && c.trim().toUpperCase() === PRO_CODE) { setPro(true); hidePaywall(); status.textContent = "✨ ¡Pro activado! Recuerdos ilimitados."; }
+    else if (c) { alert("Código no válido."); }
+  });
+
+  /* ===================== PWA: instalar + service worker + mensajes ===================== */
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferredPrompt = e; installBtn.classList.add("show"); });
+  installBtn.addEventListener("click", function () {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(function () { deferredPrompt = null; installBtn.classList.remove("show"); });
+  });
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+    navigator.serviceWorker.addEventListener("message", function (ev) {
+      var d = ev.data || {}; if (d.type === "show" && d.id) openThoughtById(d.id);
+    });
+  }
+  function openThoughtById(id) {
+    dbGet(id).then(function (rem) {
+      if (!rem) return; rem._url = null; activeRem = rem;
+      setOverlayText(rem.text); overlay.classList.add("show"); playOnce(rem);
+    });
+  }
+
+  /* ===================== Inicio ===================== */
+  setupRecognition();
+  if (!SR) showBanner("info", "ℹ️ En este navegador no se transcribe el texto, pero <b>tu voz se graba y se reproduce igual</b>. Para ver el texto usa Chrome o Edge.");
+  if (window.Notification && Notification.permission === "default") { try { Notification.requestPermission(); } catch (e) {} }
+  if (location.protocol === "file:") showBanner("err", "⚠️ Estás abriendo el archivo directamente y el micrófono puede fallar. Ábrela desde su dirección web (https) o con <b>abrir.bat</b>.");
+  // Contexto seguro: el micrófono necesita https (o localhost). Avisar si se abre por http en un dominio.
+  var secure = location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  if (!secure && location.protocol !== "file:") showBanner("err", "🔒 Para usar el micrófono, entra por <b>https://</b> (los hosting gratuitos lo ponen automáticamente).");
+  // Brave bloquea el reconocimiento de voz de Google: avisamos pero la grabación funciona igual.
+  if (navigator.brave && navigator.brave.isBrave) {
+    navigator.brave.isBrave().then(function (b) {
+      if (b && !banner.classList.contains("show"))
+        showBanner("info", "ℹ️ En <b>Brave</b> puede no aparecer el texto transcrito, pero <b>tu voz se graba y se reproduce igual</b>. Si quieres el texto, usa Chrome o Edge.");
+    }).catch(function () {});
+  }
+
+  chips.addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    delaySec = parseInt(b.getAttribute("data-sec"), 10);
+    Array.prototype.forEach.call(chips.children, function (c) { c.classList.remove("active"); });
+    b.classList.add("active");
+  });
+
+  // Escribir la nota (para móviles que no pasan voz a texto, p.ej. iPhone): entiende la hora igual.
+  (function () {
+    var typeInput = $("typeInput"), typeBtn = $("typeBtn");
+    if (!typeInput || !typeBtn) return;
+    function saveTyped() {
+      var t = typeInput.value.trim();
+      if (!t) { typeInput.focus(); return; }
+      finalText = t; lastAudioBlob = null;   // nota escrita, sin audio: se programa por el texto
+      createReminder();
+      typeInput.value = ""; typeInput.blur();
+    }
+    typeBtn.addEventListener("click", saveTyped);
+    typeInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); saveTyped(); }
+    });
+  })();
+
+  hint.textContent = "Pulsa y di a qué vas: te lo recuerdo a los pocos segundos con tu voz. ¿A una hora concreta? Escríbelo en la cajita y te aviso 1 h antes. Tus notas se guardan solo en tu dispositivo.";
+  updateFreePill();
+  enablePush();
+  // Desbloqueo Pro al volver del pago: Stripe redirige a  TU_URL/?u=UNLOCK_TOKEN
+  try {
+    var _u = new URLSearchParams(location.search).get("u");
+    if (_u && _u === UNLOCK_TOKEN) {
+      setPro(true);
+      history.replaceState({}, "", location.pathname);
+      status.textContent = "✨ ¡Pago recibido! Pro activado. ¡Gracias!";
+    }
+  } catch (e) {}
+
+  // Modo validación: si hay formulario (INTEREST_URL) y aún no hay pago real, el muro invita a apuntarse.
+  if (!CHECKOUT_URL && INTEREST_URL) {
+    proBtn.textContent = "✨ Quiero Pro";
+    var _pp = document.querySelector("#paywall p");
+    if (_pp) _pp.innerHTML = "El plan <b>Pro</b> llega pronto: <b>recuerdos ilimitados</b> y avisos en segundo plano. Apúntate y consigue <b>50% de descuento</b> al lanzarlo.";
+    proPrice.innerHTML = "Apúntate gratis<small>te avisamos del lanzamiento</small>";
+  }
+
+  /* ===================== Cargar lo guardado y reprogramar ===================== */
+  dbAll().then(function (all) {
+    all.sort(function (a, b) { return b.createdAt - a.createdAt; });
+    recents = all.slice(0, 40);
+    if (recents.length) { recallBtn.classList.add("show"); lastThought = recents[0]; }
+    var now = Date.now(), missed = [];
+    all.forEach(function (rem) {
+      if (rem.done || rem.fireAt == null) return;
+      if (rem.fireAt > now) pending.push(rem); else missed.push(rem);
+    });
+    renderPending(); renderRecents();
+    missed.sort(function (a, b) { return b.fireAt - a.fireAt; });
+    missed.forEach(function (rem, i) {
+      if (i === 0) fireReminder(rem);
+      else { rem.done = true; dbPut(rem); notify(rem); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
