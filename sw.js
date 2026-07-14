@@ -1,5 +1,5 @@
 /* Service worker de "Se me fue": instalable, offline y notificaciones en segundo plano. */
-var CACHE = "nodori-v8";
+var CACHE = "nodori-v9";
 var ASSETS = ["./", "index.html", "manifest.webmanifest", "icon.svg"];
 
 self.addEventListener("install", function (e) {

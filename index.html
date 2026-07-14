@@ -172,6 +172,16 @@
 
     <button id="recallBtn" class="recall-btn">🔊 ¿Qué estaba diciendo?</button>
 
+    <div class="type-box" style="max-width:440px;margin:16px auto 0;">
+      <div style="font-size:.9rem;color:#9aa3c7;margin-bottom:6px;text-align:center;">¿A una hora concreta? Escríbelo y te aviso 1 h antes:</div>
+      <div style="display:flex;gap:8px;">
+        <input id="typeInput" type="text" autocomplete="off" enterkeyhint="done" placeholder="pan a las cinco de la tarde"
+          style="flex:1;min-width:0;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#f2f4ff;font-size:1rem;" />
+        <button id="typeBtn" type="button" aria-label="Guardar lo escrito"
+          style="padding:12px 18px;border-radius:12px;border:none;background:linear-gradient(90deg,#5b8cff,#7c5bff);color:#fff;font-weight:700;cursor:pointer;white-space:nowrap;">Guardar</button>
+      </div>
+    </div>
+
     <div class="delay-box">
       <div class="delay-label">¿Cuándo te lo recuerdo?</div>
       <div class="chips" id="chips">
@@ -905,7 +915,24 @@
     b.classList.add("active");
   });
 
-  hint.textContent = "Pulsa, di a qué vas y te lo recuerdo a los pocos segundos con tu propia voz. Tus notas se guardan solo en tu dispositivo.";
+  // Escribir la nota (para móviles que no pasan voz a texto, p.ej. iPhone): entiende la hora igual.
+  (function () {
+    var typeInput = $("typeInput"), typeBtn = $("typeBtn");
+    if (!typeInput || !typeBtn) return;
+    function saveTyped() {
+      var t = typeInput.value.trim();
+      if (!t) { typeInput.focus(); return; }
+      finalText = t; lastAudioBlob = null;   // nota escrita, sin audio: se programa por el texto
+      createReminder();
+      typeInput.value = ""; typeInput.blur();
+    }
+    typeBtn.addEventListener("click", saveTyped);
+    typeInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); saveTyped(); }
+    });
+  })();
+
+  hint.textContent = "Pulsa y di a qué vas: te lo recuerdo a los pocos segundos con tu voz. ¿A una hora concreta? Escríbelo en la cajita y te aviso 1 h antes. Tus notas se guardan solo en tu dispositivo.";
   updateFreePill();
   enablePush();
   // Desbloqueo Pro al volver del pago: Stripe redirige a  TU_URL/?u=UNLOCK_TOKEN
