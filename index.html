@@ -173,7 +173,7 @@
     <button id="recallBtn" class="recall-btn">🔊 ¿Qué estaba diciendo?</button>
 
     <div class="type-box" style="max-width:440px;margin:16px auto 0;">
-      <div style="font-size:.9rem;color:#9aa3c7;margin-bottom:6px;text-align:center;">¿A una hora concreta? Escríbelo y te aviso 1 h antes:</div>
+      <div style="font-size:.9rem;color:#9aa3c7;margin-bottom:6px;text-align:center;">¿A una hora concreta? Escríbela y te aviso 1 h antes.<br><span style="color:#7c9cff;">Si acabas de grabar, te avisa con tu voz 🔊</span></div>
       <div style="display:flex;gap:8px;">
         <input id="typeInput" type="text" autocomplete="off" enterkeyhint="done" placeholder="pan a las cinco de la tarde"
           style="flex:1;min-width:0;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#f2f4ff;font-size:1rem;" />
@@ -922,7 +922,24 @@
     function saveTyped() {
       var t = typeInput.value.trim();
       if (!t) { typeInput.focus(); return; }
-      finalText = t; lastAudioBlob = null;   // nota escrita, sin audio: se programa por el texto
+      var when = parseWhen(t);
+      // Si acabas de grabar → tu grabación se queda con TU voz + lo que escribas + la hora.
+      var grabReciente = lastThought && lastThought.audioBlob && (Date.now() - lastThought.createdAt) < 600000;
+      if (when && grabReciente) {
+        var now = Date.now(), sched = when.fireAt, early = false;
+        if (when.kind === "time") { sched = Math.max(now + 5000, when.fireAt - 3600000); early = sched < when.fireAt - 1000; }
+        var txt = tidyText(when.cleaned || "");
+        if (txt) lastThought.text = txt;   // si escribiste el "qué", ese es el título
+        lastThought.fireAt = sched; lastThought.done = false;
+        dbPut(lastThought);
+        if (pending.indexOf(lastThought) === -1) pending.push(lastThought);
+        renderPending(); renderRecents(); requestWakeLock();
+        scheduleTriggeredNotification(lastThought); pushSchedule(lastThought);
+        status.textContent = "🔊 Te aviso " + whenLabel(lastThought.fireAt) + (early ? " · 1 h antes" : "") + " con tu voz";
+        typeInput.value = ""; typeInput.blur();
+        return;
+      }
+      finalText = t; lastAudioBlob = null;   // nota escrita sin grabación: se programa por el texto
       createReminder();
       typeInput.value = ""; typeInput.blur();
     }
