@@ -311,7 +311,8 @@
     recognition.onerror = function (e) { lastRecogError = (e && e.error) || "?"; };
     // Chrome a veces corta el reconocimiento solo a mitad: si seguimos grabando, lo reanudamos.
     recognition.onend = function () {
-      if (isRecording) { try { recognition.start(); } catch (e) {} }
+      // Reanudamos solo si seguimos grabando y no hubo error (si no, se entra en bucle de "aborted").
+      if (isRecording && !lastRecogError) { try { recognition.start(); } catch (e) {} }
     };
   }
   function renderLive(fin, interim) {
