@@ -174,6 +174,10 @@
 
     <div class="type-box" style="max-width:440px;margin:16px auto 0;">
       <div style="font-size:.9rem;color:#9aa3c7;margin-bottom:6px;text-align:center;">¿A una hora concreta? Escríbela y te aviso 1 h antes 🔊</div>
+      <div style="text-align:center;margin:0 0 10px;">
+        <button id="aiBtn" type="button" style="background:none;border:1px solid rgba(255,255,255,.2);color:#9aa3c7;border-radius:20px;padding:6px 14px;font-size:.82rem;cursor:pointer;">🧠 Que entienda lo que digo</button>
+        <div id="aiState" style="font-size:.78rem;color:#7c9cff;margin-top:5px;"></div>
+      </div>
       <div style="display:flex;gap:8px;">
         <input id="typeInput" type="text" autocomplete="off" enterkeyhint="done" placeholder="pan a las cinco de la tarde"
           style="flex:1;min-width:0;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#f2f4ff;font-size:1rem;" />
@@ -435,12 +439,16 @@
     dbPut(rem).then(prune);
     recents.unshift(rem); if (recents.length > 40) recents.pop();
     lastThought = rem; recallBtn.classList.add("show"); renderRecents(); renderLive("", "");
-    // Si grabó tu voz pero no pudo escribir lo que dijiste, avisa (y di el motivo).
+    // Si el navegador no escribió lo que dijiste: lo entiende la IA local (si la activaste) o te guiamos.
     if (!raw && lastAudioBlob) {
-      live.classList.remove("empty");
-      live.innerHTML = '<span style="font-size:.92rem;color:#ffc24b;">🎤 Guardé tu voz, pero tu navegador no pudo escribir lo que dijiste'
-        + (lastRecogError ? ' <b>(' + escapeHtml(lastRecogError) + ')</b>' : '')
-        + '. Escribe la hora en la cajita de abajo 👇</span>';
+      if (aiOn()) {
+        aiUnderstand(rem);
+      } else {
+        live.classList.remove("empty");
+        live.innerHTML = '<span style="font-size:.92rem;color:#ffc24b;">🎤 Guardé tu voz, pero tu navegador no pudo escribir lo que dijiste'
+          + (lastRecogError ? ' <b>(' + escapeHtml(lastRecogError) + ')</b>' : '')
+          + '. Escribe la hora abajo, o activa 🧠 <b>«Que entienda lo que digo»</b> 👇</span>';
+      }
     }
     incUsed();
     aiPunctuate(rem, raw);
@@ -929,6 +937,90 @@
     Array.prototype.forEach.call(chips.children, function (c) { c.classList.remove("active"); });
     b.classList.add("active");
   });
+
+  /* ===== IA local (opcional): transcribe TU grabación dentro del móvil, sin internet ni coste ===== */
+  var AI_KEY = "semefue_ai_on";
+  var transcriber = null, aiBusy = false;
+  var aiBtn = $("aiBtn"), aiState = $("aiState");
+  function aiOn() { try { return localStorage.getItem(AI_KEY) === "1"; } catch (e) { return false; } }
+  function setAiOn(v) { try { localStorage.setItem(AI_KEY, v ? "1" : "0"); } catch (e) {} updateAiUI(); }
+  function updateAiUI() {
+    if (!aiBtn) return;
+    var on = aiOn();
+    aiBtn.textContent = on ? "🧠 Te entiendo: ACTIVADO" : "🧠 Que entienda lo que digo";
+    aiBtn.style.borderColor = on ? "#7c5bff" : "rgba(255,255,255,.2)";
+    aiBtn.style.color = on ? "#c9bcff" : "#9aa3c7";
+  }
+  function loadTranscriber() {
+    if (transcriber) return Promise.resolve(transcriber);
+    return import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2").then(function (mod) {
+      mod.env.allowLocalModels = false;
+      return mod.pipeline("automatic-speech-recognition", "Xenova/whisper-tiny", {
+        progress_callback: function (p) {
+          if (p && p.status === "progress" && p.progress != null && aiState) {
+            aiState.textContent = "Descargando cerebro… " + Math.round(p.progress) + "%";
+          }
+        }
+      });
+    }).then(function (t) { transcriber = t; return t; });
+  }
+  function blobToAudio(blob) {
+    return blob.arrayBuffer().then(function (ab) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      var ctx = new Ctx({ sampleRate: 16000 });
+      return ctx.decodeAudioData(ab).then(function (buf) {
+        var data = buf.getChannelData(0);
+        try { ctx.close(); } catch (e) {}
+        return data;
+      });
+    });
+  }
+  // Tras grabar: entiende lo que dijiste y, si hay hora, la programa (conservando TU voz).
+  function aiUnderstand(rem) {
+    if (!aiOn() || !rem || !rem.audioBlob || aiBusy) return;
+    aiBusy = true;
+    if (aiState) aiState.textContent = "🧠 Entendiendo lo que dijiste…";
+    loadTranscriber().then(function (t) {
+      if (aiState) aiState.textContent = "🧠 Entendiendo lo que dijiste…";
+      return blobToAudio(rem.audioBlob).then(function (audio) {
+        return t(audio, { language: "spanish", task: "transcribe" });
+      });
+    }).then(function (out) {
+      aiBusy = false;
+      var txt = ((out && out.text) || "").trim();
+      if (!txt) { if (aiState) aiState.textContent = "No te entendí. Escribe la hora abajo 👇"; return; }
+      renderLive(txt, "");
+      var when = parseWhen(txt);
+      var t2 = tidyText(when ? when.cleaned : txt);
+      if (t2) rem.text = t2;
+      if (when) {
+        var now = Date.now(), sched = when.fireAt, early = false;
+        if (when.kind === "time") { sched = Math.max(now + 5000, when.fireAt - 3600000); early = sched < when.fireAt - 1000; }
+        rem.fireAt = sched; rem.done = false;
+        if (pending.indexOf(rem) === -1) pending.push(rem);
+        scheduleTriggeredNotification(rem); pushSchedule(rem); requestWakeLock();
+        status.textContent = "🔊 Te aviso " + whenLabel(rem.fireAt) + (early ? " · 1 h antes" : "") + " con tu voz";
+      }
+      dbPut(rem); renderPending(); renderRecents();
+      if (aiState) aiState.textContent = "";
+    }).catch(function (e) {
+      aiBusy = false;
+      if (aiState) aiState.textContent = "No pude entenderte (" + ((e && e.message) || "error") + "). Escribe la hora 👇";
+    });
+  }
+  if (aiBtn) {
+    aiBtn.addEventListener("click", function () {
+      if (aiOn()) { setAiOn(false); if (aiState) aiState.textContent = ""; return; }
+      setAiOn(true);
+      if (aiState) aiState.textContent = "Preparando… la 1ª vez descarga ~40 MB (luego ya no)";
+      loadTranscriber().then(function (t) {
+        if (aiState) aiState.textContent = "Afinando el cerebro… (solo esta vez)";
+        return t(new Float32Array(16000), { language: "spanish", task: "transcribe" }).catch(function () {});
+      }).then(function () { if (aiState) aiState.textContent = "✅ Listo. Habla y di la hora."; })
+        .catch(function (e) { setAiOn(false); if (aiState) aiState.textContent = "No se pudo activar (" + ((e && e.message) || "error") + ")"; });
+    });
+    updateAiUI();
+  }
 
   // Escribir la nota (para móviles que no pasan voz a texto, p.ej. iPhone): entiende la hora igual.
   (function () {
