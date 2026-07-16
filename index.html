@@ -877,7 +877,7 @@
   function incUsed() { try { localStorage.setItem("nodori_used", String(usedCount() + 1)); } catch (e) {} updateFreePill(); }
 
   function updateFreePill() {
-    if (BETA_MODE) { freePill.className = "free-pill pro show"; freePill.innerHTML = "Beta · todo desbloqueado ✨"; return; }
+    if (BETA_MODE) { freePill.className = "free-pill"; freePill.innerHTML = ""; return; }   // beta: sin etiqueta, pantalla limpia
     if (isPro()) { freePill.className = "free-pill pro show"; freePill.innerHTML = "<b>Pro</b> · recuerdos ilimitados ✨"; return; }
     var left = Math.max(0, FREE_LIMIT - usedCount());
     freePill.className = "free-pill show";
