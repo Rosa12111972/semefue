@@ -416,7 +416,8 @@
   function createReminder() {
     var raw = finalText;
     var when = parseWhen(raw);                        // ¿dijo un día/hora? ("mañana a las 9", "en 10 min", "el viernes")
-    var text = tidyText(when && when.cleaned ? when.cleaned : raw);
+    // Si detectó una hora, usamos SOLO lo que queda tras quitarla (aunque quede vacío → "Nota de voz").
+    var text = tidyText(when ? when.cleaned : raw);
     if (!text && !lastAudioBlob) { status.textContent = "No te oí. Inténtalo otra vez."; return; }
     var now = Date.now();
     var scheduled, early = false;
@@ -809,13 +810,14 @@
       if(/\bpasado mañana\b/.test(t)){ d = new Date(); d.setSeconds(0,0); d.setDate(d.getDate()+2); hasDate = true; strip.push("pasado mañana"); }
       else if(!hasDate && /\bmañana\b/.test(t) && !/(la|esta|por la|de la) mañana/.test(t)){ d = new Date(); d.setSeconds(0,0); d.setDate(d.getDate()+1); hasDate = true; strip.push("mañana"); }
 
-      if((m = t.match(new RegExp("a\\s+la?s?\\s+("+HRRE+")(?:\\s*[:.h]\\s*(\\d{2})|\\s+y\\s+(media|cuarto|"+HRRE+")|\\s+menos\\s+(cuarto|"+HRRE+"))?\\s*(de la (?:mañana|tarde|noche)|a\\.?m\\.?|p\\.?m\\.?|h)?")))){
+      if((m = t.match(new RegExp("a\\s+la?s?\\s+("+HRRE+")(?:\\s*[:.h]\\s*(\\d{2})|\\s+([0-5]\\d)(?!\\d)|\\s+y\\s+(media|cuarto|"+HRRE+")|\\s+menos\\s+(cuarto|"+HRRE+"))?\\s*(de la (?:mañana|tarde|noche)|a\\.?m\\.?|p\\.?m\\.?|h)?")))){
         var hh = hourNum(m[1]); if(hh==null) hh = 0;
         var mm = 0;
         if(m[2]) mm = parseInt(m[2],10);
-        else if(m[3]){ if(/media/.test(m[3])) mm = 30; else if(/cuarto/.test(m[3])) mm = 15; else { var mn = hourNum(m[3]); if(mn!=null) mm = mn; } }
-        else if(m[4]){ if(/cuarto/.test(m[4])) mm = 45; else { var mn2 = hourNum(m[4]); mm = 60 - (mn2||0); } hh = (hh + 23) % 24; }
-        var suf = m[5]||"";
+        else if(m[3]) mm = parseInt(m[3],10);   // "a las 11 45": al dictar no siempre pone los dos puntos
+        else if(m[4]){ if(/media/.test(m[4])) mm = 30; else if(/cuarto/.test(m[4])) mm = 15; else { var mn = hourNum(m[4]); if(mn!=null) mm = mn; } }
+        else if(m[5]){ if(/cuarto/.test(m[5])) mm = 45; else { var mn2 = hourNum(m[5]); mm = 60 - (mn2||0); } hh = (hh + 23) % 24; }
+        var suf = m[6]||"";
         if(/tarde|noche|p\.?m/.test(suf) && hh<12) hh += 12;
         if(/(mañana|a\.?m)/.test(suf) && hh===12) hh = 0;
         d.setHours(hh,mm,0,0); hasTime = true; strip.push(m[0]);
@@ -837,6 +839,8 @@
     var cleaned = raw;
     strip.forEach(function(s){ s = s.trim(); if (s) cleaned = cleaned.replace(new RegExp(reEsc(s),"i")," "); });
     cleaned = cleaned.replace(/\b(recu[eé]rdame|acu[eé]rdate de|acu[eé]rdate|tengo que|hay que|ap[uú]nta(?:me)?|anota|a las?|el|la|los)\b/gi," ").replace(/\s+/g," ").replace(/^[\s,.;:]+|[\s,.;:]+$/g,"").trim();
+    // Red de seguridad: si solo queda un número o un trocito suelto ("45"), no sirve de título.
+    if (/^[\d\s:.,;-]*$/.test(cleaned) || cleaned.length < 3) cleaned = "";
     return { fireAt: fireAt, cleaned: cleaned, kind: kind };
   }
 
@@ -948,6 +952,11 @@
         status.textContent = "🔊 Te aviso " + whenLabel(lastThought.fireAt) + (early ? " · 1 h antes" : "") + " con tu voz";
         typeInput.value = ""; typeInput.blur();
         return;
+      }
+      // Solo escribiste una hora y no hay grabación: no hay nada que recordar.
+      if (when && (!when.cleaned || when.cleaned.length < 2)) {
+        status.textContent = "¿Y qué te recuerdo? Escríbelo también (ej. «pan a las cinco»).";
+        typeInput.focus(); return;
       }
       finalText = t; lastAudioBlob = null;   // nota escrita sin grabación: se programa por el texto
       createReminder();
