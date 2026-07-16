@@ -72,6 +72,9 @@
     border-radius: 18px; padding: 17px; font-size: 1.18rem; font-weight: 800; cursor: pointer; display: none; transition: transform .1s ease, background .15s ease; }
   .recall-btn.show { display: block; }
   .recall-btn:active { transform: scale(.97); background: rgba(91,140,255,.22); }
+  /* Pantalla limpia: fuera el botón de recuerdo y el hueco vacío del texto (solo aparece si hay algo) */
+  #recallBtn { display: none !important; }
+  .live.empty { display: none; }
 
   .delay-box { width: 100%; }
   .delay-label { color: var(--muted); font-size: .85rem; margin-bottom: 8px; text-align: center; }
@@ -174,9 +177,9 @@
 
     <div class="type-box" style="max-width:440px;margin:16px auto 0;">
       <div style="font-size:.9rem;color:#9aa3c7;margin-bottom:6px;text-align:center;">¿A una hora concreta? Escríbela y te aviso 1 h antes 🔊</div>
-      <div style="text-align:center;margin:0 0 10px;">
-        <button id="aiBtn" type="button" style="background:none;border:1px solid rgba(255,255,255,.2);color:#9aa3c7;border-radius:20px;padding:6px 14px;font-size:.82rem;cursor:pointer;">🧠 Que entienda lo que digo</button>
-        <div id="aiState" style="font-size:.78rem;color:#7c9cff;margin-top:5px;"></div>
+      <div id="aiBox" style="text-align:center;margin:0 0 12px;">
+        <button id="aiBtn" type="button" style="background:linear-gradient(90deg,#7c5bff,#5b8cff);border:none;color:#fff;border-radius:14px;padding:13px 24px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(124,91,255,.45);">🧠 Que entienda lo que digo</button>
+        <div id="aiState" style="font-size:.8rem;color:#9aa3c7;margin-top:7px;"></div>
       </div>
       <div style="display:flex;gap:8px;">
         <input id="typeInput" type="text" autocomplete="off" enterkeyhint="done" placeholder="pan a las cinco de la tarde"
@@ -943,13 +946,13 @@
   var transcriber = null, aiBusy = false;
   var aiBtn = $("aiBtn"), aiState = $("aiState");
   function aiOn() { try { return localStorage.getItem(AI_KEY) === "1"; } catch (e) { return false; } }
-  function setAiOn(v) { try { localStorage.setItem(AI_KEY, v ? "1" : "0"); } catch (e) {} updateAiUI(); }
+  function setAiOn(v) { try { localStorage.setItem(AI_KEY, v ? "1" : "0"); } catch (e) {} }
+  function hideAiBox() { var b = $("aiBox"); if (b) b.style.display = "none"; }
+  // Si ya está activado, el botón sobra: el cerebro vive dentro del micro. Se esconde y punto.
   function updateAiUI() {
     if (!aiBtn) return;
-    var on = aiOn();
-    aiBtn.textContent = on ? "🧠 Te entiendo: ACTIVADO" : "🧠 Que entienda lo que digo";
-    aiBtn.style.borderColor = on ? "#7c5bff" : "rgba(255,255,255,.2)";
-    aiBtn.style.color = on ? "#c9bcff" : "#9aa3c7";
+    if (aiOn()) { hideAiBox(); return; }
+    if (aiState) aiState.textContent = "Actívalo una vez y ya podrás decir la hora hablando ✨";
   }
   function loadTranscriber() {
     if (transcriber) return Promise.resolve(transcriber);
@@ -979,16 +982,15 @@
   function aiUnderstand(rem) {
     if (!aiOn() || !rem || !rem.audioBlob || aiBusy) return;
     aiBusy = true;
-    if (aiState) aiState.textContent = "🧠 Entendiendo lo que dijiste…";
+    status.textContent = "🧠 Entendiendo lo que dijiste…";
     loadTranscriber().then(function (t) {
-      if (aiState) aiState.textContent = "🧠 Entendiendo lo que dijiste…";
       return blobToAudio(rem.audioBlob).then(function (audio) {
         return t(audio, { language: "spanish", task: "transcribe" });
       });
     }).then(function (out) {
       aiBusy = false;
       var txt = ((out && out.text) || "").trim();
-      if (!txt) { if (aiState) aiState.textContent = "No te entendí. Escribe la hora abajo 👇"; return; }
+      if (!txt) { status.textContent = "No te entendí bien. Escribe la hora abajo 👇"; return; }
       renderLive(txt, "");
       var when = parseWhen(txt);
       var t2 = tidyText(when ? when.cleaned : txt);
@@ -1002,10 +1004,9 @@
         status.textContent = "🔊 Te aviso " + whenLabel(rem.fireAt) + (early ? " · 1 h antes" : "") + " con tu voz";
       }
       dbPut(rem); renderPending(); renderRecents();
-      if (aiState) aiState.textContent = "";
     }).catch(function (e) {
       aiBusy = false;
-      if (aiState) aiState.textContent = "No pude entenderte (" + ((e && e.message) || "error") + "). Escribe la hora 👇";
+      status.textContent = "No pude entenderte. Escribe la hora abajo 👇";
     });
   }
   if (aiBtn) {
@@ -1016,8 +1017,10 @@
       loadTranscriber().then(function (t) {
         if (aiState) aiState.textContent = "Afinando el cerebro… (solo esta vez)";
         return t(new Float32Array(16000), { language: "spanish", task: "transcribe" }).catch(function () {});
-      }).then(function () { if (aiState) aiState.textContent = "✅ Listo. Habla y di la hora."; })
-        .catch(function (e) { setAiOn(false); if (aiState) aiState.textContent = "No se pudo activar (" + ((e && e.message) || "error") + ")"; });
+      }).then(function () {
+        if (aiState) aiState.textContent = "✅ ¡Listo! Ya te entiendo. Pulsa el micro y di la hora.";
+        setTimeout(hideAiBox, 3000);   // hecho su trabajo, desaparece: el cerebro ya vive en el micro
+      }).catch(function (e) { setAiOn(false); if (aiState) aiState.textContent = "No se pudo activar (" + ((e && e.message) || "error") + ")"; });
     });
     updateAiUI();
   }
