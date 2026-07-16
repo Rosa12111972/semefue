@@ -173,7 +173,7 @@
     <button id="recallBtn" class="recall-btn">🔊 ¿Qué estaba diciendo?</button>
 
     <div class="type-box" style="max-width:440px;margin:16px auto 0;">
-      <div style="font-size:.9rem;color:#9aa3c7;margin-bottom:6px;text-align:center;">¿A una hora concreta? Escríbela y te aviso 1 h antes.<br><span style="color:#7c9cff;">Si acabas de grabar, te avisa con tu voz 🔊</span></div>
+      <div style="font-size:.9rem;color:#9aa3c7;margin-bottom:6px;text-align:center;">¿A una hora concreta? Escríbela y te aviso 1 h antes 🔊</div>
       <div style="display:flex;gap:8px;">
         <input id="typeInput" type="text" autocomplete="off" enterkeyhint="done" placeholder="pan a las cinco de la tarde"
           style="flex:1;min-width:0;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#f2f4ff;font-size:1rem;" />
@@ -234,7 +234,7 @@
   "use strict";
 
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var recognition = null, isRecording = false, finalText = "";
+  var recognition = null, isRecording = false, finalText = "", lastRecogError = "";
   var mediaStream = null, mediaRecorder = null, chunks = [], lastAudioBlob = null;
   var delaySec = 8;
   var pending = [], recents = [], lastThought = null;
@@ -308,8 +308,11 @@
       if (fin) finalText += fin;
       renderLive(finalText, interim);
     };
-    recognition.onerror = function () {};
-    recognition.onend = function () {};
+    recognition.onerror = function (e) { lastRecogError = (e && e.error) || "?"; };
+    // Chrome a veces corta el reconocimiento solo a mitad: si seguimos grabando, lo reanudamos.
+    recognition.onend = function () {
+      if (isRecording) { try { recognition.start(); } catch (e) {} }
+    };
   }
   function renderLive(fin, interim) {
     if (!fin && !interim) { live.classList.add("empty"); live.textContent = "Aquí aparecerá lo que digas…"; return; }
@@ -334,7 +337,7 @@
       showBanner("err", "⚠️ Este navegador no da acceso al micrófono aquí. Abre la app con <b>abrir.bat</b> (Edge/Chrome) en vez de hacer doble clic al archivo.");
       return;
     }
-    finalText = ""; lastAudioBlob = null; renderLive("", "");
+    finalText = ""; lastAudioBlob = null; lastRecogError = ""; renderLive("", "");
     hasSpoken = false; lastLoud = performance.now();
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
       mediaStream = stream; chunks = [];
@@ -430,6 +433,13 @@
     dbPut(rem).then(prune);
     recents.unshift(rem); if (recents.length > 40) recents.pop();
     lastThought = rem; recallBtn.classList.add("show"); renderRecents(); renderLive("", "");
+    // Si grabó tu voz pero no pudo escribir lo que dijiste, avisa (y di el motivo).
+    if (!raw && lastAudioBlob) {
+      live.classList.remove("empty");
+      live.innerHTML = '<span style="font-size:.92rem;color:#ffc24b;">🎤 Guardé tu voz, pero tu navegador no pudo escribir lo que dijiste'
+        + (lastRecogError ? ' <b>(' + escapeHtml(lastRecogError) + ')</b>' : '')
+        + '. Escribe la hora en la cajita de abajo 👇</span>';
+    }
     incUsed();
     aiPunctuate(rem, raw);
     if (rem.fireAt) {
@@ -949,7 +959,7 @@
     });
   })();
 
-  hint.textContent = "Pulsa y di a qué vas: te lo recuerdo a los pocos segundos con tu voz. ¿A una hora concreta? Escríbelo en la cajita y te aviso 1 h antes. Tus notas se guardan solo en tu dispositivo.";
+  hint.textContent = "Pulsa, di a qué vas, y te lo recuerdo con tu voz. Tus notas se guardan solo en tu dispositivo.";
   updateFreePill();
   enablePush();
   // Desbloqueo Pro al volver del pago: Stripe redirige a  TU_URL/?u=UNLOCK_TOKEN
