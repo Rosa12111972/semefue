@@ -834,6 +834,13 @@
         if(/(mañana|a\.?m)/.test(suf) && hh===12) hh = 0;
         d.setHours(hh,mm,0,0); hasTime = true; strip.push(m[0]);
       }
+      // Hora suelta, sin "a las" ("mañana 11:45 sesión de fotos"). Pide separador (:.h) para no confundir números.
+      else if((m = t.match(/\b([01]?\d|2[0-3])\s*[:.h]\s*([0-5]\d)\s*(de la (?:mañana|tarde|noche)|a\.?m\.?|p\.?m\.?)?/))){
+        var bh = parseInt(m[1],10), bm = parseInt(m[2],10), bsuf = m[3]||"";
+        if(/tarde|noche|p\.?m/.test(bsuf) && bh<12) bh += 12;
+        if(/(mañana|a\.?m)/.test(bsuf) && bh===12) bh = 0;
+        d.setHours(bh,bm,0,0); hasTime = true; strip.push(m[0]);
+      }
       else if(/(esta tarde|por la tarde|a la tarde)/.test(t)){ d.setHours(17,0,0,0); hasTime = true; strip.push("tarde"); }
       else if(/(esta noche|por la noche|a la noche)/.test(t)){ d.setHours(21,0,0,0); hasTime = true; strip.push("noche"); }
       else if(/(esta mañana|por la mañana|de la mañana)/.test(t)){ d.setHours(9,0,0,0); hasTime = true; strip.push("mañana"); }
@@ -990,7 +997,9 @@
     }).then(function (out) {
       aiBusy = false;
       var txt = ((out && out.text) || "").trim();
-      if (!txt) { status.textContent = "No te entendí bien. Escribe la hora abajo 👇"; return; }
+      // Con silencio, la IA alucina cosas tipo "[Música]", "(Aplausos)"… eso no es una nota: fuera.
+      txt = txt.replace(/[\[\(][^\]\)]*[\]\)]/g, "").replace(/\s+/g, " ").trim();
+      if (!txt || txt.length < 3) { status.textContent = "🎤 No te oí bien. Revisa el micrófono o escribe la hora abajo 👇"; return; }
       renderLive(txt, "");
       var when = parseWhen(txt);
       var t2 = tidyText(when ? when.cleaned : txt);
