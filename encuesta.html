@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tu opinión · Se me fue</title>
+<style>
+  :root{--bg:#0f1226;--bg2:#1a1f3d;--card:#171b34;--text:#f2f4ff;--muted:#9aa3c7;--accent:#5b8cff;--accent2:#7c5bff;--ok:#41d3a0;}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 800px at 50% -10%,var(--bg2),var(--bg));color:var(--text);font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;line-height:1.5;padding:28px 18px 60px;min-height:100vh;}
+  .wrap{max-width:520px;margin:0 auto;}
+  .brand{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:6px;}
+  .brand h1{font-size:1.5rem;margin:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{text-align:center;color:var(--muted);font-size:.95rem;margin:0 0 26px;}
+  .q{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:18px 18px 20px;margin-bottom:16px;}
+  .q label.title{display:block;font-weight:600;font-size:1.05rem;margin-bottom:14px;}
+  .stars{display:flex;gap:8px;justify-content:space-between;}
+  .stars input{display:none;}
+  .stars label{flex:1;text-align:center;padding:12px 0;border:1px solid rgba(255,255,255,.15);border-radius:12px;cursor:pointer;font-size:1.1rem;transition:.15s;color:var(--muted);}
+  .stars input:checked+label{background:linear-gradient(90deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;font-weight:700;transform:scale(1.05);}
+  textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);border-radius:12px;color:var(--text);font:inherit;padding:12px 14px;resize:vertical;min-height:80px;}
+  .opts{display:flex;flex-direction:column;gap:10px;}
+  .opts label{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:14px;cursor:pointer;transition:.15s;}
+  .opts input{accent-color:var(--accent2);width:20px;height:20px;}
+  .opts label:has(input:checked){border-color:var(--accent2);background:rgba(124,91,255,.14);}
+  .send{width:100%;border:none;border-radius:14px;padding:16px;font-size:1.1rem;font-weight:700;color:#fff;background:linear-gradient(90deg,var(--accent),var(--accent2));cursor:pointer;box-shadow:0 6px 18px rgba(124,91,255,.4);margin-top:6px;}
+  .send:active{transform:scale(.98);}
+  .thanks{display:none;text-align:center;background:var(--card);border:1px solid rgba(65,211,160,.4);border-radius:16px;padding:34px 20px;}
+  .thanks .big{font-size:2.4rem;}
+  .thanks h2{margin:12px 0 6px;}
+  .thanks a{color:var(--accent);}
+  .err{display:none;color:var(--warn,#ffc24b);text-align:center;margin-top:12px;font-size:.9rem;}
+  .foot{text-align:center;color:var(--muted);font-size:.82rem;margin-top:22px;}
+  .foot a{color:var(--accent);}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand"><h1>💭 Se me fue</h1></div>
+    <p class="sub">¿Me ayudas con 3 preguntitas? Tardas 20 segundos y me ayudas un montón 🙏</p>
+
+    <form id="form">
+      <!-- ⬇️⬇️ PON AQUÍ TU CLAVE DE WEB3FORMS (ver instrucciones) ⬇️⬇️ -->
+      <input type="hidden" name="access_key" value="TU_CLAVE_AQUI" />
+      <input type="hidden" name="subject" value="Nueva respuesta · Encuesta Se me fue" />
+      <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" />
+
+      <div class="q">
+        <label class="title">1. Del 1 al 5, ¿cuánto te ayuda "Se me fue"?</label>
+        <div class="stars">
+          <input type="radio" id="r1" name="Cuanto te ayuda (1-5)" value="1" required /><label for="r1">1</label>
+          <input type="radio" id="r2" name="Cuanto te ayuda (1-5)" value="2" /><label for="r2">2</label>
+          <input type="radio" id="r3" name="Cuanto te ayuda (1-5)" value="3" /><label for="r3">3</label>
+          <input type="radio" id="r4" name="Cuanto te ayuda (1-5)" value="4" /><label for="r4">4</label>
+          <input type="radio" id="r5" name="Cuanto te ayuda (1-5)" value="5" /><label for="r5">5 ⭐</label>
+        </div>
+      </div>
+
+      <div class="q">
+        <label class="title" for="mejora">2. ¿Qué cambiarías o qué le falta?</label>
+        <textarea id="mejora" name="Que cambiarias o falta" placeholder="Lo que se te ocurra…"></textarea>
+      </div>
+
+      <div class="q">
+        <label class="title">3. ¿Pagarías por una versión con recordatorios ilimitados y asistente?</label>
+        <div class="opts">
+          <label><input type="radio" name="Pagarias" value="Si, sin duda" required /> 💚 Sí, sin duda</label>
+          <label><input type="radio" name="Pagarias" value="Tal vez, segun el precio" /> 🤔 Tal vez, según el precio</label>
+          <label><input type="radio" name="Pagarias" value="No, solo gratis" /> 🆓 No, solo la quiero gratis</label>
+        </div>
+      </div>
+
+      <button type="submit" class="send">Enviar mi opinión 💜</button>
+      <div class="err" id="err">Ups, no se pudo enviar. Revisa tu conexión e inténtalo otra vez.</div>
+    </form>
+
+    <div class="thanks" id="thanks">
+      <div class="big">🎉</div>
+      <h2>¡Gracias de corazón!</h2>
+      <p>Tu opinión me ayuda a mejorar "Se me fue".</p>
+      <p><a href="https://semefue.com">← Volver a la app</a></p>
+    </div>
+
+    <div class="foot">Hecho con 💜 · <a href="https://semefue.com">semefue.com</a></div>
+  </div>
+
+<script>
+  var form = document.getElementById('form');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var err = document.getElementById('err'); err.style.display = 'none';
+    var btn = form.querySelector('.send'); btn.textContent = 'Enviando…'; btn.disabled = true;
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: new FormData(form)
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data && data.success) {
+        form.style.display = 'none';
+        document.getElementById('thanks').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else { throw new Error('fail'); }
+    }).catch(function () {
+      err.style.display = 'block'; btn.textContent = 'Enviar mi opinión 💜'; btn.disabled = false;
+    });
+  });
+</script>
+</body>
+</html>

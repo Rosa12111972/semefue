@@ -201,6 +201,14 @@
 
     <div id="pendingList" class="pending-list"></div>
 
+    <div id="fbCard" style="display:none;background:linear-gradient(90deg,rgba(91,140,255,.14),rgba(124,91,255,.14));border:1px solid rgba(124,91,255,.35);border-radius:14px;padding:14px 16px;margin:14px 0 0;text-align:center;">
+      <div style="font-size:.95rem;color:#f2f4ff;margin-bottom:11px;">💜 ¿Te está sirviendo? Ayúdame con <b>3 preguntitas</b> (20 segundos)</div>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <a id="fbYes" href="encuesta.html" style="background:linear-gradient(90deg,#5b8cff,#7c5bff);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:11px;font-size:.92rem;">Sí, te ayudo</a>
+        <button id="fbNo" type="button" style="background:none;border:1px solid rgba(255,255,255,.2);color:#9aa3c7;padding:10px 16px;border-radius:11px;font-size:.92rem;cursor:pointer;">Ahora no</button>
+      </div>
+    </div>
+
     <div class="history" id="recentsBox" style="display:none">
       <h2>Recientes · toca para escuchar</h2>
       <div id="recentsList"></div>
@@ -881,7 +889,22 @@
   function isPro() { try { return localStorage.getItem("nodori_pro") === "1"; } catch (e) { return false; } }
   function setPro(v) { try { localStorage.setItem("nodori_pro", v ? "1" : "0"); } catch (e) {} updateFreePill(); }
   function usedCount() { var n = parseInt((function () { try { return localStorage.getItem("nodori_used"); } catch (e) { return "0"; } })() || "0", 10); return isNaN(n) ? 0 : n; }
-  function incUsed() { try { localStorage.setItem("nodori_used", String(usedCount() + 1)); } catch (e) {} updateFreePill(); }
+  function incUsed() { try { localStorage.setItem("nodori_used", String(usedCount() + 1)); } catch (e) {} updateFreePill(); checkFeedbackPrompt(); }
+
+  /* ===== Encuesta dentro de la app: aparece tras usarla unas veces (una vez, y se puede cerrar) ===== */
+  var FB_KEY = "semefue_feedback";
+  function fbDone() { try { return localStorage.getItem(FB_KEY) === "1"; } catch (e) { return false; } }
+  function setFbDone() { try { localStorage.setItem(FB_KEY, "1"); } catch (e) {} }
+  function checkFeedbackPrompt() {
+    var card = $("fbCard"); if (!card) return;
+    if (fbDone()) { card.style.display = "none"; return; }
+    if (usedCount() >= 3) card.style.display = "block";   // ya la ha usado y le sirve: buen momento para preguntar
+  }
+  (function () {
+    var y = $("fbYes"), n = $("fbNo"), c = $("fbCard");
+    if (y) y.addEventListener("click", function () { setFbDone(); });          // va a la encuesta: no volver a preguntar
+    if (n) n.addEventListener("click", function () { setFbDone(); if (c) c.style.display = "none"; });
+  })();
 
   function updateFreePill() {
     if (BETA_MODE) { freePill.className = "free-pill"; freePill.innerHTML = ""; return; }   // beta: sin etiqueta, pantalla limpia
@@ -1075,6 +1098,7 @@
 
   hint.textContent = "Pulsa, di a qué vas, y te lo recuerdo con tu voz. Tus notas se guardan solo en tu dispositivo.";
   updateFreePill();
+  checkFeedbackPrompt();
   enablePush();
   // Desbloqueo Pro al volver del pago: Stripe redirige a  TU_URL/?u=UNLOCK_TOKEN
   try {
